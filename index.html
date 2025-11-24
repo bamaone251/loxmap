@@ -65,7 +65,7 @@
             for (const k in (feature?.properties || {})) propsLower[k.toLowerCase()] = feature.properties[k];
             const name = propsLower['ahead store'] ?? propsLower['ahead store'.toLowerCase()] ?? propsLower['ahead store'] ?? 'Store';
             // fallback to original properties if needed
-            const rawName = feature?.properties?.['AHEAD store'] ?? feature?.properties?.['AHEAD Store'];
+            const rawName = feature?.properties?.['AHEAD_store'] ?? feature?.properties?.['AHEAD_Store'];
             const finalName = rawName ?? name;
             const props = feature?.properties ?? {};
             const displayName = finalName ?? name;

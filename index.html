@@ -1,136 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Store Locations Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="data" href="stores1.geojson" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    :root { color-scheme: dark light; }
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100vh; width: 100%; }
-    .leaflet-tooltip { font-weight: 600; }
-    /* Search box styles */
-    .search-container {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: rgba(255,255,255,0.9);
-      border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      padding: 6px 8px;
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-    }
-    .search-input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; width: 260px; }
-    .search-btn { padding: 6px 10px; border: none; background: #0078ff; color: white; border-radius: 4px; cursor: pointer; }
-    .search-results { max-height: 260px; overflow: auto; margin-top: 6px; font-size: 0.9rem; }
-    .search-item { padding: 6px; cursor: pointer; border-bottom: 1px solid #eee; }
-    .search-item:hover { background: #f2f2f2; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Locations Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+            z-index: 1;
+        }
+
+        /* Search Bar Styling */
+        .search-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000; /* Above the map */
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            gap: 10px;
+            width: 300px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* Label Styling (Ahead_Store) */
+        .store-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-weight: bold;
+            font-size: 10px;
+            white-space: nowrap;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .leaflet-tooltip-left:before, .leaflet-tooltip-right:before {
+            border: none !important;
+        }
+    </style>
 </head>
 <body>
-  <div class="search-container" id="searchUI">
-    <input id="searchInput" class="search-input" placeholder="Search AHEAD store..." />
-    <button id="searchBtn" class="search-btn">Search</button>
-  </div>
-  <div id="map"></div>
-  <script>
-    // Initialize map (centered broadly on Gulf Coast / AL region)
-    const map = L.map('map').setView([31.2, -87.6], 6);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search any field (e.g. City, Manager)...">
+    </div>
 
-    fetch('stores1.geojson')
-      .then(r => r.json())
-      .then(geo => {
-        // Keep references for search
-        const features = geo.features || [];
-  const markers = [];
+    <div id="map"></div>
 
-        const layer = L.geoJSON(geo, {
-          pointToLayer: (feature, latlng) => L.marker(latlng),
-          onEachFeature: (feature, layer) => {
-            // support multiple capitalizations/variants of the AHEAD store key
-            const propsLower = {};
-            for (const k in (feature?.properties || {})) propsLower[k.toLowerCase()] = feature.properties[k];
-            const name = propsLower['ahead store'] ?? propsLower['ahead store'.toLowerCase()] ?? propsLower['ahead store'] ?? 'Store';
-            // fallback to original properties if needed
-            const rawName = feature?.properties?.['AHEAD_store'] ?? feature?.properties?.['AHEAD_Store'];
-            const finalName = rawName ?? name;
-            const props = feature?.properties ?? {};
-            const displayName = finalName ?? name;
-            // Label + popup
-            layer.bindTooltip(String(displayName), {direction: 'top'});
-            // Build a simple popup with all properties
-            const rows = Object.entries(props)
-              .map(([k,v]) => `<tr><td><b>${k}</b></td><td>${v ?? ''}</td></tr>`)
-              .join('');
-            layer.bindPopup(`<div style="min-width:220px"><h3 style="margin:.25rem 0">${displayName}</h3><table>${rows}</table></div>`);
-            // store marker for searching - keep normalized property value available
-            markers.push({feature, layer, storeName: String(finalName)});
-          }
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <script>
+        // --- 1. The Data (Cleaned version of provided GeoJSON) ---
+        // I have cleaned the data of source tags for immediate use.
+        const storeData = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.4204651,32.4615713]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":3,"Ahead_Store":"L970","Street":"1817 East Main Street","City":"Prattville","State":"AL","Store_Manager":"Rausch, Holly N.","DateOpened":"2018-12-06"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.2195836,32.3564686]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":5,"Ahead_Store":"L971","Street":"1568 Eastern Blvd","City":"Montgomery","State":"AL","Store_Manager":"Frederick, Scott D.","DateOpened":"2019-07-31"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.2160118,32.5057623]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":7,"Ahead_Store":"L973","Street":"4445 US Hwy 231","City":"Wetumpka","State":"AL","Store_Manager":"Tice, Joseph G.","DateOpened":"2020-10-14"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.1487642,32.4288138]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":8,"Ahead_Store":"FK87","Street":"750 Highland Colony Pkwy.","City":"Ridgeland","State":"MS","Store_Manager":"Hernandez, Angelica","DateOpened":"2025-09-25"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.164573,32.36063]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":9,"Ahead_Store":"L974","Street":"7340 Eastchase Parkway","City":"Montgomery","State":"AL","Store_Manager":"Petty, Larreka D.","DateOpened":"2021-06-09"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.0963433,30.4556321]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":25,"Ahead_Store":"FK95","Street":"9720 Cortana Pl","City":"Baton Rouge","State":"LA","Store_Manager":"Fields, Thomas","DateOpened":"2024-12-11"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.5703638,33.2373209]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":28,"Ahead_Store":"L256","Street":"1349 McFarland Blvd","City":"Tuscaloosa","State":"AL","Store_Manager":"Batey, Jared D.","DateOpened":"2015-10-28"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.644367,30.424995]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":33,"Ahead_Store":"FK99","Street":"427 Mary Esther Cutoff","City":"Fort Walton Beach","State":"FL","Store_Manager":"Wariner, Jacob","DateOpened":"2023-12-20"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.4630113,31.5803152]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":38,"Ahead_Store":"FK89","Street":"840 Brookway Blvd","City":"Brookhaven","State":"MS","Store_Manager":"Coleman, Cortney","DateOpened":"2024-12-11"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.8940293,30.4724172]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":40,"Ahead_Store":"FE11","Street":"10101 County Rd 48","City":"Fairhope","State":"AL","Store_Manager":"Joya, Cory L.","DateOpened":"2023-03-01"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.1316153,30.6770092]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":44,"Ahead_Store":"L984","Street":"3658 Airport Blvd","City":"Mobile","State":"AL","Store_Manager":"Wathke, Lath A.","DateOpened":"2022-09-21"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.2249121,30.6698016]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":45,"Ahead_Store":"L985","Street":"975 Schillinger Rd S","City":"Mobile","State":"AL","Store_Manager":null,"DateOpened":"2022-06-24"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.145574,30.589529]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":46,"Ahead_Store":"L986","Street":"5021 Rangeline Crossing Dr","City":"Mobile","State":"AL","Store_Manager":"Malone, Michel","DateOpened":"2022-03-02"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.9040572,30.6197719]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":47,"Ahead_Store":"L987","Street":"27060 US Hwy 98","City":"Daphne","State":"AL","Store_Manager":"Lien, Lisa M.","DateOpened":"2022-07-27"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.7652299,30.4107372]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":48,"Ahead_Store":"FE12","Street":"3801 Bienville Blvd","City":"Ocean Springs","State":"MS","Store_Manager":"Eriquez, Asure","DateOpened":"2022-08-24"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.681947,30.380612]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":52,"Ahead_Store":"L989","Street":"130 E Pride Blvd","City":"Foley","State":"AL","Store_Manager":"Novy, David W.","DateOpened":"2022-04-13"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.5284259,30.3773237]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":53,"Ahead_Store":"FF77","Street":"3809 Denny Ave","City":"Pascagoula","State":"MS","Store_Manager":"Cruz, Luis","DateOpened":"2024-04-24"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.2814516,30.4404742]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":56,"Ahead_Store":"L990","Street":"4830 Mobile Hwy","City":"Pensacola","State":"FL","Store_Manager":"Ravel, Christopher","DateOpened":"2022-05-04"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.3569591,30.3617935]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":57,"Ahead_Store":"L991","Street":"2950 S Blue Angel Pkwy, 600","City":"Pensacola","State":"FL","Store_Manager":"Bolling, Ronald","DateOpened":"2022-04-06"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.8542477,30.4040302]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":58,"Ahead_Store":"L992","Street":"8816 Navarre Parkway","City":"Navarre","State":"FL","Store_Manager":"Harrer, Camry","DateOpened":"2022-03-09"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.161081,30.59936]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":59,"Ahead_Store":"FE13","Street":"4770 US-90 W","City":"Pace","State":"FL","Store_Manager":"Granger II Daniel","DateOpened":"2022-09-14"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.5679228,30.7310228]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":60,"Ahead_Store":"FF78","Street":"2680 S Ferdon Blvd Unit 201","City":"Crestview","State":"FL","Store_Manager":"Maloney, Mary","DateOpened":"2023-05-17"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.4721996,30.5174358]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":61,"Ahead_Store":"FE14","Street":"1030 John Sims Pkwy E","City":"Niceville","State":"FL","Store_Manager":"Harrer, Camry","DateOpened":"2022-06-22"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.5929381,30.1596632]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":63,"Ahead_Store":"FE45","Street":"5500 East 7th Street","City":"Callaway","State":"FL","Store_Manager":"Cole, Donald W.","DateOpened":"2023-02-22"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.649133,30.225124]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":64,"Ahead_Store":"FE15","Street":"2260 S Hwy 77","City":"Lynn Haven","State":"FL","Store_Manager":"Cambra, Regina M.","DateOpened":"2022-08-24"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-89.8272712,30.3048258]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":67,"Ahead_Store":"FE16","Street":"137 Northshore Blvd","City":"Slidell","State":"LA","Store_Manager":"Smith, Perrilynn","DateOpened":"2022-06-01"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.112449,29.837276]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":68,"Ahead_Store":"FE17","Street":"4957 Promenade Blvd","City":"Marrero","State":"LA","Store_Manager":"Story Maness, Morgan A.","DateOpened":"2023-11-15"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.504628,30.0751889]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":69,"Ahead_Store":"FE18","Street":"1910 W Airline Hwy","City":"Laplace","State":"LA","Store_Manager":"Patterson, Eric","DateOpened":"2022-10-19"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.235096,32.31201]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":70,"Ahead_Store":"FF80","Street":"101 Primos Rd","City":"Flowood","State":"MS","Store_Manager":"Lott, Anna M.","DateOpened":"2023-06-07"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.0064656,30.4343902]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":71,"Ahead_Store":"FF81","Street":"2385 O'Neal Ln","City":"Baton Rouge","State":"LA","Store_Manager":"Davis, Cieara M.","DateOpened":"2024-01-17"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.953331,30.8548331]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":72,"Ahead_Store":"FK90","Street":"1530 E Jackson St","City":"Thomasville","State":"GA","Store_Manager":"Ohlsson, Eric","DateOpened":"2024-09-18"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.086863,30.37349]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":73,"Ahead_Store":"FE36","Street":"14350 Grand Settlement Blvd","City":"Baton Rouge","State":"LA","Store_Manager":"Delgado, Michael A.","DateOpened":"2023-08-30"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.832156,33.453495]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":75,"Ahead_Store":"FE29","Street":"671 Hwy 12 W","City":"Starkville","State":"MS","Store_Manager":"Beard, Austin","DateOpened":"2022-12-14"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.6724008,32.3639597]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":76,"Ahead_Store":"FE19","Street":"131 S. Frontage Road","City":"Meridian","State":"MS","Store_Manager":"Wriston, Evelyn","DateOpened":"2022-08-31"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.6149958,33.2337912]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":77,"Ahead_Store":"L305","Street":"5801 McFarland Blvd","City":"Northport","State":"AL","Store_Manager":"Robichaud, Brady","DateOpened":"2019-10-30"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-92.0479654,30.1560509]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":79,"Ahead_Store":"FB21","Street":"4518 Ambassador Caffery Pkwy","City":"Lafayette","State":"LA","Store_Manager":"Spring, Audrey M.","DateOpened":"2022-02-09"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.8216337,29.9845272]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":81,"Ahead_Store":"FB22","Street":"1102 East Admiral Doyle Dr","City":"New Iberia","State":"LA","Store_Manager":"Edler, Kyle J.","DateOpened":"2022-05-04"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.0667344,30.3843488]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":83,"Ahead_Store":"FE37","Street":"10201 N Reiger Rd","City":"Baton Rouge","State":"LA","Store_Manager":"Briley, Tim","DateOpened":"2023-12-14"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.2268233,30.0071638]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":84,"Ahead_Store":"FE20","Street":"8855 Veterans Memorial Blvd","City":"Metairie","State":"LA","Store_Manager":"Crabtree III, John B.","DateOpened":"2022-12-22"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.9906747,30.2655717]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":85,"Ahead_Store":"FB23","Street":"3210 Louisiana Ave","City":"Lafayette","State":"LA","Store_Manager":"Hawkins, LaShawntel S.","DateOpened":"2022-11-16"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.0853547,30.4372453]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":86,"Ahead_Store":"FE21","Street":"123 Holiday Blvd","City":"Covington","State":"LA","Store_Manager":"Turner, Christopher","DateOpened":"2023-01-18"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.4778113,31.2622103]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":88,"Ahead_Store":"FE28","Street":"105 Edgewood Dr","City":"Mccomb","State":"MS","Store_Manager":"Marshall, Darion A.","DateOpened":"2023-01-18"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-89.382596,31.321205]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":89,"Ahead_Store":"FF84","Street":"6042 U S Hwy 98","City":"Hattiesburg","State":"MS","Store_Manager":"Newman, Blake A.","DateOpened":"2023-12-07"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.2399112,30.4276373]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":90,"Ahead_Store":"L782","Street":"2425 Apalachee Parkway","City":"Tallahassee","State":"FL","Store_Manager":"Hopson, Jalisa C.","DateOpened":"2021-04-30"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.7463085,29.6074439]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":91,"Ahead_Store":"FF85","Street":"1520 Martin Luther King Blvd","City":"Houma","State":"LA","Store_Manager":"Chen, Richard","DateOpened":"2024-01-17"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.8193897,29.8054576]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":92,"Ahead_Store":"FF86","Street":"32 Rienzi Dr","City":"Thibodaux","State":"LA","Store_Manager":"Alviar, Azaria","DateOpened":"2023-07-12"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.3199034,30.4419513]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":95,"Ahead_Store":"L783","Street":"2020 W Pensacola St Ste 300","City":"Tallahassee","State":"FL","Store_Manager":"Pipes, Brittany","DateOpened":"2021-08-18"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.8286398,31.3186656]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":96,"Ahead_Store":"FF88","Street":"630 Boll Weevil Cir","City":"Enterprise","State":"AL","Store_Manager":"Taylor, Melissa","DateOpened":"2023-11-01"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.1973206,29.9781004]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":141,"Ahead_Store":"FK96","Street":"5901 Airline Drive","City":"Metairie","State":"LA","Store_Manager":"Muse, Ashley","DateOpened":"2024-12-19"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.364791,29.908157]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":144,"Ahead_Store":"FK97","Street":"12125 US Hwy. 90","City":"Luling","State":"LA","Store_Manager":"Alexander Jr., Louis","DateOpened":"2025-06-26"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.0326803,29.8885332]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":145,"Ahead_Store":"FP08","Street":"2112 Belle Chasse Hwy.","City":"Terrytown","State":"LA","Store_Manager":"Brittain, Elijah V.","DateOpened":"2025-06-26"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.0118608,29.9235993]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":146,"Ahead_Store":"FK85","Street":"3008 Holiday Drive","City":"New Orleans","State":"LA","Store_Manager":"Henly, Jadith G.","DateOpened":"2025-07-28"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.5206937,30.72802]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":149,"Ahead_Store":"FP01","Street":"804 W. Oak Street","City":"Amite","State":"LA","Store_Manager":"Smith Jr., Frank A.","DateOpened":"2025-03-12"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-89.7212451,30.2912097]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":152,"Ahead_Store":"FP23","Street":"2985 Gause Blvd. E.","City":"Slidell","State":"LA","Store_Manager":"Brumfield, Brittany","DateOpened":"2025-09-25"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.8970177,30.440502]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":153,"Ahead_Store":"FP02","Street":"10511 D'Iberville Blvd.","City":"D'Iberville","State":"LA","Store_Manager":"Stone, Alyssa M.","DateOpened":"2025-04-23"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.486795,30.5024035]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":157,"Ahead_Store":"FP25","Street":"2302 W. Thomas Street","City":"Hammond","State":"LA","Store_Manager":"Christopher, Dylan","DateOpened":"2025-09-25"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-90.983158,30.3343913]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":159,"Ahead_Store":"FP03","Street":"17682 Airline Hwy","City":"Prairieville","State":"LA","Store_Manager":"Weddington, Torian","DateOpened":"2025-05-14"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.2170054,32.0739396]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":167,"Ahead_Store":"FP13","Street":"1208 Crawford St.","City":"Americus","State":"GA","Store_Manager":"Mack, Torrey D.","DateOpened":"2025-05-29"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.565344,30.9040572]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":169,"Ahead_Store":"FP38","Street":"915 E Shotwell St","City":"Bainbridge","State":"GA","Store_Manager":"Redmon-McCloud, Adaina M.","DateOpened":"2025-04-16"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.257116,30.7801294]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":174,"Ahead_Store":"FP05","Street":"9082 Moffett Road","City":"Semmes","State":"AL","Store_Manager":"Ward, Samantha H.","DateOpened":"2025-05-22"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-91.1506275,30.6505341]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":181,"Ahead_Store":"FP14","Street":"5005 Church Street","City":"Zachary","State":"LA","Store_Manager":"Royal, Horace","DateOpened":"2025-10-09"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.596212,30.586464]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":184,"Ahead_Store":"FF95","Street":"1600 W Jefferson St","City":"Quincy","State":"FL","Store_Manager":"Sabari, Jordan","DateOpened":"2025-04-16"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.3702497,30.1923261]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":186,"Ahead_Store":"FK98","Street":"2629 Crawfordville Hwy","City":"Crawfordville","State":"FL","Store_Manager":"Taylor, Michael","DateOpened":"2025-07-24"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.7030533,30.1886643]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":187,"Ahead_Store":"FF79","Street":"3157 West 23rd Street","City":"Panama City","State":"FL","Store_Manager":"Walker, Chelsey","DateOpened":"2025-03-05"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.9732544,30.2631394]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":188,"Ahead_Store":"FF74","Street":"23200 Front Beach Road","City":"Panama City","State":"FL","Store_Manager":"Harrer, Camry","DateOpened":"2025-02-19"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.054208,30.631897]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":189,"Ahead_Store":"FP26","Street":"5428 Dogwood Drive","City":"Milton","State":"FL","Store_Manager":"Smith, Brent A.","DateOpened":"2025-10-01"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-89.7840406,30.261982]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":204,"Ahead_Store":"FP09","Street":"3030 Pontchartrain Dr","City":"Slidell","State":"LA","Store_Manager":"Doucet, Joseph","DateOpened":"2025-03-26"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.260344,30.5342085]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":206,"Ahead_Store":"FP10","Street":"312 E Nine Mile Rd","City":"Pensacola","State":"FL","Store_Manager":"Figueroa, Louis M.","DateOpened":"2025-03-12"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.5524418,33.2370506]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":228,"Ahead_Store":"FP12","Street":"10 Mcfarland Blvd.","City":"Northport","State":"AL","Store_Manager":"Carr, William","DateOpened":"2025-02-19"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-88.0753466,30.6804593]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":233,"Ahead_Store":"FP17","Street":"1550 Government Street","City":"Mobile","State":"AL","Store_Manager":"Adams, Shaundra","DateOpened":"2025-02-26"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.7587591,31.9612252]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":236,"Ahead_Store":"FP27","Street":"1011 E 16th Ave.","City":"Cordele","State":"GA","Store_Manager":"Ward, Daniel","DateOpened":"2025-10-09"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-86.6401271,30.4474564]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":241,"Ahead_Store":"FF82","Street":"798 Beal Parkway","City":"Fort Walton Beach","State":"FL","Store_Manager":"Patterson, Whitney C.","DateOpened":"2025-04-23"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.065826,32.3982667]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":243,"Ahead_Store":"FP15","Street":"1952 W. Dallas Ave.","City":"Selma","State":"AL","Store_Manager":"Parten, Kimberly","DateOpened":"2025-10-16"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-85.95385,32.94401]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":245,"Ahead_Store":"FP06","Street":"1061 US HWY. 280","City":"Alexander City","State":"AL","Store_Manager":null,"DateOpened":"2025-07-28"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-87.547445,33.131489]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":251,"Ahead_Store":"FP39","Street":"9750 Hwy. 69 South","City":"Tuscaloosa","State":"AL","Store_Manager":"Dempsey, Desiree","DateOpened":"2025-09-18"}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.593543,31.462512]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":null,"Ahead_Store":"FPX0","Street":"1805 US-82 E","City":"Tifton","State":"GA","Store_Manager":null,"DateOpened":null}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-84.2033146,31.6206795]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":null,"Ahead_Store":"FPX1","Street":"2816 Nottingham Way","City":"Albany","State":"GA","Store_Manager":null,"DateOpened":null}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.291559,30.886648]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":null,"Ahead_Store":"FPX2","Street":"3283 Jack Staten Way","City":"Valdosta","State":"GA","Store_Manager":null,"DateOpened":null}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.6914022,32.6165052]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":null,"Ahead_Store":"FPX3","Street":"3003 Watson Blvd","City":"Warner Robins","State":"GA","Store_Manager":null,"DateOpened":null}},
+                {"type":"Feature","geometry":{"type":"Point","coordinates":[-83.7106985,32.8215087]},"properties":{"Division":"LOX","Ahead_Division":"FR26","Store_no":null,"Ahead_Store":"FPX4","Street":"4501 Log Cabin Drive","City":"Macon","State":"GA","Store_Manager":null,"DateOpened":null}}
+            ]
+        };
+
+        // --- 2. Initialize Map ---
+        // Centered on the general AL/MS/FL region
+        const map = L.map('map').setView([31.5, -88.0], 6);
+
+        // Add OpenStreetMap Tile Layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Fit to data if there are features
-        try {
-          map.fitBounds(layer.getBounds(), {padding: [20,20]});
-        } catch(e) {
-          // If bounds fail (e.g., no features), keep default view.
-          console.warn('Unable to fit bounds:', e);
+        // Layer group to hold our markers (allows us to clear them easily when searching)
+        const markerLayer = L.layerGroup().addTo(map);
+
+        // --- 3. Function to Render Markers ---
+        function renderMarkers(data) {
+            markerLayer.clearLayers(); // Clear existing markers
+
+            const geoJsonLayer = L.geoJSON(data, {
+                onEachFeature: function (feature, layer) {
+                    // Create Popup Content (Table format)
+                    let popupContent = "<h3>" + (feature.properties.Ahead_Store || "Unknown Store") + "</h3><table style='width:100%'>";
+                    for (const [key, value] of Object.entries(feature.properties)) {
+                        if(key !== "lat" && key !== "lon") { // Skip redundancy
+                             popupContent += `<tr><td style="font-weight:bold; padding-right:10px;">${key}:</td><td>${value || "N/A"}</td></tr>`;
+                        }
+                    }
+                    popupContent += "</table>";
+                    
+                    layer.bindPopup(popupContent);
+
+                    // Add Label (Ahead_Store) - Permanent
+                    if (feature.properties.Ahead_Store) {
+                        layer.bindTooltip(feature.properties.Ahead_Store, {
+                            permanent: true, 
+                            direction: 'top',
+                            className: 'store-label'
+                        });
+                    }
+                }
+            });
+            
+            markerLayer.addLayer(geoJsonLayer);
+
+            // Fit map to bounds of matching results
+            if (data.features.length > 0) {
+                map.fitBounds(geoJsonLayer.getBounds(), {padding: [50, 50]});
+            }
         }
 
-        // --- Search UI logic ---
+        // --- 4. Search Functionality ---
         const searchInput = document.getElementById('searchInput');
-        const searchBtn = document.getElementById('searchBtn');
 
-        function normalize(s) {
-          return String(s ?? '').toLowerCase().trim();
-        }
+        searchInput.addEventListener('keyup', function(e) {
+            const query = e.target.value.toLowerCase();
 
-        function runSearch() {
-          const q = normalize(searchInput.value);
-          if (!q) {
-            alert('Please enter a search term');
-            return;
-          }
-          // find matches by 'AHEAD store' property (case-insensitive, substring)
-          // match against normalized stored name and also check common property variants
-          const matches = markers.filter(m => {
-            const candidate = normalize(m.storeName ?? m.feature?.properties?.['AHEAD store'] ?? m.feature?.properties?.['AHEAD Store']);
-            return candidate.includes(q);
-          });
-          if (matches.length === 0) {
-            alert('No stores matched: ' + searchInput.value);
-            return;
-          }
+            // Filter the data
+            const filteredFeatures = storeData.features.filter(feature => {
+                // Check ALL properties for the search string
+                return Object.values(feature.properties).some(val => 
+                    String(val).toLowerCase().includes(query)
+                );
+            });
 
-          // If multiple matches, fit bounds to them and open popup for first
-          const matchLayers = matches.map(m => m.layer);
-          try {
-            const group = L.featureGroup(matchLayers);
-            map.fitBounds(group.getBounds(), {padding: [40,40]});
-          } catch (e) { /* ignore */ }
+            // Create a temp FeatureCollection to render
+            const filteredData = {
+                "type": "FeatureCollection",
+                "features": filteredFeatures
+            };
 
-          // Open popup for first match and set highlight (pan & zoom slightly)
-          const first = matchLayers[0];
-          first.openPopup();
-        }
+            renderMarkers(filteredData);
+        });
 
-        searchBtn.addEventListener('click', runSearch);
-        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
+        // --- 5. Initial Render ---
+        renderMarkers(storeData);
 
-      })
-      .catch(err => console.error('Error loading GeoJSON:', err));
-  </script>
+    </script>
 </body>
 </html>
